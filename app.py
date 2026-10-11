@@ -140,4 +140,6 @@ else:
                 st.caption('For research and educational purposes only. Not investment advice.')
         except Exception as exc:
             st.error('Unable to load the momentum watchlist. Check the Streamlit Supabase secrets and the published CSV files.')
+            import logging
+            logging.getLogger("momentum").error("Watchlist loading failed: %s: %s", type(exc).__name__, str(exc).split("?")[0])
             # Avoid showing credential-bearing request details to website visitors.
