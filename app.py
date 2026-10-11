@@ -14,7 +14,7 @@ FILES = ('01&16_Review_Date_Wise_Active_Stocks.csv', 'Expiry_Review_Date_Wise_Ac
 IST = ZoneInfo('Asia/Kolkata')
 
 st.markdown('''<style>
-#MainMenu, footer, header {visibility:hidden;}
+#MainMenu, footer, header[data-testid="stHeader"] {visibility:hidden;}
 .stApp {background:radial-gradient(circle at 50% 10%,#182d44 0%,#0b1625 55%,#080f19 100%);color:#f5f2ea;}
 .block-container {max-width:1060px;padding-top:5rem;padding-bottom:5rem;}
 h1,h2,h3,p {color:#f5f2ea!important;}
@@ -27,6 +27,9 @@ h1,h2,h3,p {color:#f5f2ea!important;}
 .gold {color:#d8bb80!important;}
 .stButton>button {width:100%;background:#d8bb80;color:#0d1826;border:0;border-radius:10px;padding:.75rem 1rem;font-weight:700;}
 .stButton>button:hover {background:#ecd3a3;color:#0d1826;}
+.stDownloadButton>button {background:#d8bb80!important;color:#0d1826!important;border:0!important;border-radius:10px!important;font-weight:700!important;}
+.stDownloadButton>button:hover {background:#ecd3a3!important;color:#0d1826!important;}
+.stDownloadButton>button p {color:#0d1826!important;}
 .stLinkButton>a {background:#d8bb80!important;color:#0d1826!important;border:0!important;border-radius:10px!important;font-weight:700!important;}
 .back .stButton>button {background:transparent;color:#d8bb80;border:1px solid #5d6774;}
 </style>''', unsafe_allow_html=True)
