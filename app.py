@@ -62,7 +62,7 @@ def fetch_snapshot(filename):
 
 def effective_default_date():
     now = datetime.now(IST)
-    return now.date() if now.time() >= time(20, 0) else (now - timedelta(days=1)).date()
+    return now.date() if now.time() >= time(17, 0) else (now - timedelta(days=1)).date()
 
 def select_snapshot(frame, selected_date):
     # Data_Date is the EOD date used to build the watchlist; review dates can
