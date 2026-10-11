@@ -1,7 +1,17 @@
+import io
+from datetime import datetime, timedelta, date, time
+from zoneinfo import ZoneInfo
+from urllib.parse import quote
+
+import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(page_title='NC Wealth Corporation', page_icon='📈', layout='wide', initial_sidebar_state='collapsed')
 SCREENER_URL = 'https://ema-stock-screener.streamlit.app/'
+BUCKET = 'momentum-trading'
+FILES = ('01&16_Review_Date_Wise_Active_Stocks.csv', 'Expiry_Review_Date_Wise_Active_Stocks.csv')
+IST = ZoneInfo('Asia/Kolkata')
 
 st.markdown('''<style>
 #MainMenu, footer, header {visibility:hidden;}
@@ -28,6 +38,55 @@ def navigate(page):
     st.session_state.page = page
     st.rerun()
 
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_snapshot(filename):
+    # Credentials stay on Streamlit's server and are never sent to the browser.
+    url = st.secrets['SUPABASE_URL'].rstrip('/')
+    key = st.secrets['SUPABASE_SERVICE_ROLE_KEY']
+    object_path = quote(f'historical-watchlists/{filename}', safe='/')
+    endpoint = f'{url}/storage/v1/object/authenticated/{BUCKET}/{object_path}'
+    response = requests.get(endpoint, headers={'apikey': key, 'Authorization': f'Bearer {key}'}, timeout=40)
+    response.raise_for_status()
+    frame = pd.read_csv(io.BytesIO(response.content), dtype={'Stock': str, 'Theme': str})
+    required = {'Review_Date', 'Data_Date', 'Theme', 'Stock'}
+    if not required.issubset(frame.columns):
+        raise ValueError(f'Missing columns in {filename}: {required - set(frame.columns)}')
+    frame['Data_Date'] = pd.to_datetime(frame['Data_Date'], errors='coerce').dt.normalize()
+    frame['Review_Date'] = pd.to_datetime(frame['Review_Date'], errors='coerce').dt.normalize()
+    frame['Theme'] = frame['Theme'].astype(str).str.strip().str.upper()
+    frame['Stock'] = frame['Stock'].astype(str).str.strip().str.upper()
+    return frame.dropna(subset=['Data_Date', 'Review_Date'])
+
+def effective_default_date():
+    now = datetime.now(IST)
+    return now.date() if now.time() >= time(20, 0) else (now - timedelta(days=1)).date()
+
+def select_snapshot(frame, selected_date):
+    # Data_Date is the EOD date used to build the watchlist; review dates can
+    # fall on the following calendar day. The user asked for EOD availability.
+    eligible = frame[frame['Data_Date'] <= pd.Timestamp(selected_date)]
+    if eligible.empty:
+        return eligible, None
+    latest = eligible['Data_Date'].max()
+    # One snapshot per strategy, never mix earlier and later snapshots.
+    candidates = eligible[eligible['Data_Date'] == latest]
+    review = candidates['Review_Date'].max()
+    return candidates[candidates['Review_Date'] == review], latest
+
+def show_list(title, symbols, prefix):
+    st.subheader(f'{title} ({len(symbols)})')
+    if symbols:
+        st.write(', '.join(symbols))
+    else:
+        st.info('No active stocks in this category for the selected date.')
+    csv_bytes = pd.DataFrame({'Symbol': symbols}).to_csv(index=False).encode('utf-8')
+    txt_bytes = ','.join(symbols).encode('utf-8')
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button('Download CSV', data=csv_bytes, file_name=f'{prefix}.csv', mime='text/csv', use_container_width=True)
+    with c2:
+        st.download_button('Download TXT', data=txt_bytes, file_name=f'{prefix}.txt', mime='text/plain', use_container_width=True)
+
 if st.session_state.page == 'Home':
     st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
     st.markdown('<div class="tagline">Compounding Relationships.</div>', unsafe_allow_html=True)
@@ -40,9 +99,7 @@ if st.session_state.page == 'Home':
         st.markdown('<div class="card"><div class="card-title">Trading</div><div class="card-text">A dedicated space for trading strategies, analysis and risk management.</div></div>', unsafe_allow_html=True)
         if st.button('Explore Trading →', key='trade'): navigate('Trading')
 else:
-    st.markdown('<div class="back">', unsafe_allow_html=True)
-    if st.button('← Back to Home'): navigate('Home')
-    st.markdown('</div>', unsafe_allow_html=True)
+    if st.button('← Back to Home', key='back_home'): navigate('Home')
     st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
     if st.session_state.page == 'Investing':
         st.markdown('<div class="tagline">Investing</div>', unsafe_allow_html=True)
@@ -50,6 +107,37 @@ else:
         st.markdown('<div class="card"><div class="card-title">EMA Stock Screener</div><div class="card-text">Screen stocks using EMA-based technical filters, historical market-cap snapshots and momentum rankings.</div></div>', unsafe_allow_html=True)
         st.link_button('Open EMA Stock Screener ↗', SCREENER_URL, use_container_width=True)
         st.caption('Opens the existing EMA Stock Screener application in a new tab.')
-    else:
+    elif st.session_state.page == 'Trading':
         st.markdown('<div class="tagline">Trading</div>', unsafe_allow_html=True)
-        st.markdown('<div class="subtitle">Trading strategies and tools are coming soon.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="subtitle">Explore our trading research tools</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><div class="card-title">Momentum Trading Watchlist</div><div class="card-text">Explore bullish and bearish stocks using 25- and 50-session price momentum.</div></div>', unsafe_allow_html=True)
+        if st.button('Open Momentum Watchlist →', key='open_momentum'): navigate('Momentum')
+    elif st.session_state.page == 'Momentum':
+        if st.button('← Back to Trading', key='back_trading'): navigate('Trading')
+        st.markdown('<div class="tagline">Momentum Trading Watchlist</div>', unsafe_allow_html=True)
+        st.markdown('<div class="subtitle">Bullish and bearish momentum stocks</div>', unsafe_allow_html=True)
+        cutoff = effective_default_date()
+        selected = st.date_input('Select Date', value=cutoff, max_value=datetime.now(IST).date(), min_value=date(2025, 10, 10))
+        try:
+            frames = [fetch_snapshot(name) for name in FILES]
+            snapshots = [select_snapshot(frame, selected) for frame in frames]
+            dates = [dt for _, dt in snapshots if dt is not None]
+            if not dates:
+                st.warning('No watchlist is available for this date. Please select a later date.')
+            else:
+                most_recent = max(dates)
+                st.markdown(f'**Data as of: {most_recent.strftime("%d %B %Y")}**')
+                combined = pd.concat([frame for frame, _ in snapshots if not frame.empty], ignore_index=True)
+                bullish = sorted(set(combined.loc[combined['Theme'] == 'BULLISH', 'Stock']) - {'', 'NAN'})
+                bearish = sorted(set(combined.loc[combined['Theme'] == 'BEARISH', 'Stock']) - {'', 'NAN'})
+                c1, c2 = st.columns(2, gap='large')
+                with c1:
+                    show_list('📈 Bullish Momentum', bullish, f'bullish_momentum_{selected:%Y%m%d}')
+                with c2:
+                    show_list('📉 Bearish Momentum', bearish, f'bearish_momentum_{selected:%Y%m%d}')
+                st.markdown('### How are stocks selected?')
+                st.write('We evaluate stock-price performance over the previous **25 and 50 trading sessions**. Stocks in the **top 30 in both periods** are considered for the bullish watchlist, while stocks in the **bottom 30 in both periods** are considered for the bearish watchlist. Existing selections are reviewed periodically.')
+                st.caption('For research and educational purposes only. Not investment advice.')
+        except Exception as exc:
+            st.error('Unable to load the momentum watchlist. Check the Streamlit Supabase secrets and the published CSV files.')
+            # Avoid showing credential-bearing request details to website visitors.
