@@ -22,8 +22,6 @@ def get_signals():
 
 
 def show_rsi_page(navigate, ist):
-    if st.button('← Back to Trading', key='back_rsi'):
-        navigate('Trading')
     st.markdown('<div class="tagline">Triple RSI Divergence</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Bullish and bearish confirmed daily divergence</div>', unsafe_allow_html=True)
     today = datetime.now(ist).date()
