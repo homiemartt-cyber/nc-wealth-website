@@ -2,6 +2,7 @@ import io
 from datetime import datetime, timedelta, date, time
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
+from html import escape
 
 import pandas as pd
 import requests
@@ -36,6 +37,8 @@ h1,h2,h3,p {color:#f5f2ea!important;}
 [data-testid="stPageLink"] a {background:#d8bb80!important;border-radius:10px!important;padding:.75rem 1rem!important;text-decoration:none!important;justify-content:center!important;}
 [data-testid="stPageLink"] a:hover {background:#ecd3a3!important;}
 [data-testid="stPageLink"] a p {color:#0d1826!important;font-weight:700!important;}
+a.nc-nav-link {display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none!important;background:#d8bb80;color:#0d1826!important;border:0;border-radius:10px;padding:.75rem 1rem;font-weight:700;margin:.55rem 0 1rem;}
+a.nc-nav-link:hover {background:#ecd3a3;color:#0d1826!important;}
 </style>''', unsafe_allow_html=True)
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -87,12 +90,25 @@ def show_list(title, symbols, prefix):
     with c2:
         st.download_button('Download TXT', data=txt_bytes, file_name=f'{prefix}.txt', mime='text/plain', use_container_width=True)
 
-# Streamlit native pages have distinct URL paths and browser history.
+# Streamlit native pages have distinct URL paths. Navigation uses normal same-tab links.
 # Keep the navigation sidebar hidden; use the existing NC Wealth buttons.
 
 def nav_link(label, page_name):
-    # Native Streamlit page link: same tab, URL changes, browser Back/Forward.
-    st.page_link(PAGES[page_name], label=label, use_container_width=True)
+    # A full same-tab navigation creates an ordinary browser history entry.
+    # Unlike Streamlit's client-side page switching, Chrome can traverse
+    # Home -> Trading -> RSI -> Trading -> Home reliably.
+    paths = {
+        'Home': '/',
+        'Investing': '/investing',
+        'Trading': '/trading',
+        'Momentum': '/momentum',
+        'RSI': '/rsi-divergence',
+    }
+    path = paths[page_name]
+    st.markdown(
+        f'<a class="nc-nav-link" href="{path}" target="_self">{escape(label)}</a>',
+        unsafe_allow_html=True,
+    )
 
 
 def common_header():

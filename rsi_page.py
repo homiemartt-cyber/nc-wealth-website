@@ -31,15 +31,12 @@ def show_rsi_page(navigate, ist):
     if 'rsi_end' not in st.session_state:
         st.session_state.rsi_end = today
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     if c1.button('Last 15 days', key='rsi15'):
         st.session_state.rsi_start = max(minimum, today - timedelta(days=14))
         st.session_state.rsi_end = today
     if c2.button('Last 30 days', key='rsi30'):
         st.session_state.rsi_start = max(minimum, today - timedelta(days=29))
-        st.session_state.rsi_end = today
-    if c3.button('From 01/01/2025', key='rsi_all'):
-        st.session_state.rsi_start = minimum
         st.session_state.rsi_end = today
 
     d1, d2 = st.columns(2)
