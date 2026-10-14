@@ -115,7 +115,7 @@ else:
         st.markdown('<div class="subtitle">Explore our trading research tools</div>', unsafe_allow_html=True)
         st.markdown('<div class="card"><div class="card-title">Momentum Trading Watchlist</div><div class="card-text">Explore bullish and bearish stocks using 25- and 50-session price momentum.</div></div>', unsafe_allow_html=True)
         if st.button('Open Momentum Watchlist →', key='open_momentum'): navigate('Momentum')
-        st.markdown('<div class="card"><div class="card-title">Triple Bullish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><div class="card-title">Triple Bullish &amp; Bearish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish and bearish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
         if st.button('Open RSI Divergence Scanner →', key='open_rsi'): navigate('RSI')
     elif st.session_state.page == 'Momentum':
         if st.button('← Back to Trading', key='back_trading'): navigate('Trading')
