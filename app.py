@@ -32,6 +32,8 @@ h1,h2,h3,p {color:#f5f2ea!important;}
 .stDownloadButton>button p {color:#0d1826!important;}
 .stLinkButton>a {background:#d8bb80!important;color:#0d1826!important;border:0!important;border-radius:10px!important;font-weight:700!important;}
 .back .stButton>button {background:transparent;color:#d8bb80;border:1px solid #5d6774;}
+a.nc-nav-link {display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none!important;background:#d8bb80;color:#0d1826!important;border:0;border-radius:10px;padding:.75rem 1rem;font-weight:700;margin:.55rem 0 1rem;}
+a.nc-nav-link:hover {background:#ecd3a3;color:#0d1826!important;}
 </style>''', unsafe_allow_html=True)
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -86,9 +88,12 @@ def show_list(title, symbols, prefix):
 # Streamlit native pages have distinct URL paths and browser history.
 # Keep the navigation sidebar hidden; use the existing NC Wealth buttons.
 
+def nav_link(label, path):
+    # A normal browser link creates a real history entry (Back/Forward).
+    st.markdown(f'<a class="nc-nav-link" href="{path}">{label}</a>', unsafe_allow_html=True)
+
 def common_header():
-    if st.button('← Back to Home', key='back_home'):
-        st.switch_page(PAGES['Home'])
+    nav_link('← Back to Home', '/')
     st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
 
 def home_page():
@@ -98,10 +103,10 @@ def home_page():
     left, right = st.columns(2, gap='large')
     with left:
         st.markdown('<div class="card"><div class="card-title">Investing</div><div class="card-text">Explore research-driven investment strategies, screening tools and opportunities.</div></div>', unsafe_allow_html=True)
-        if st.button('Explore Investing →', key='invest'): st.switch_page(PAGES['Investing'])
+        nav_link('Explore Investing →', '/investing')
     with right:
         st.markdown('<div class="card"><div class="card-title">Trading</div><div class="card-text">A dedicated space for trading strategies, analysis and risk management.</div></div>', unsafe_allow_html=True)
-        if st.button('Explore Trading →', key='trade'): st.switch_page(PAGES['Trading'])
+        nav_link('Explore Trading →', '/trading')
 def investing_page():
     common_header()
     st.markdown('<div class="tagline">Investing</div>', unsafe_allow_html=True)
@@ -115,9 +120,9 @@ def trading_page():
     st.markdown('<div class="tagline">Trading</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Explore our trading research tools</div>', unsafe_allow_html=True)
     st.markdown('<div class="card"><div class="card-title">Momentum Trading Watchlist</div><div class="card-text">Explore bullish and bearish stocks using 25- and 50-session price momentum.</div></div>', unsafe_allow_html=True)
-    if st.button('Open Momentum Watchlist →', key='open_momentum'): st.switch_page(PAGES['Momentum'])
+    nav_link('Open Momentum Watchlist →', '/momentum')
     st.markdown('<div class="card"><div class="card-title">Triple Bullish &amp; Bearish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish and bearish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
-    if st.button('Open RSI Divergence Scanner →', key='open_rsi'): st.switch_page(PAGES['RSI'])
+    nav_link('Open RSI Divergence Scanner →', '/rsi-divergence')
 
 def momentum_page():
     common_header()
@@ -155,7 +160,7 @@ def momentum_page():
 def rsi_page():
     common_header()
     from rsi_page import show_rsi_page
-    show_rsi_page(lambda destination: st.switch_page(PAGES[destination]), IST)
+    show_rsi_page(lambda destination: None, IST)
 
 PAGES = {
     'Home': st.Page(home_page, title='Home', icon='🏠', default=True, url_path=''),
