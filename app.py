@@ -34,13 +34,6 @@ h1,h2,h3,p {color:#f5f2ea!important;}
 .back .stButton>button {background:transparent;color:#d8bb80;border:1px solid #5d6774;}
 </style>''', unsafe_allow_html=True)
 
-if 'page' not in st.session_state:
-    st.session_state.page = 'Home'
-
-def navigate(page):
-    st.session_state.page = page
-    st.rerun()
-
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_snapshot(filename):
     # Credentials stay on Streamlit's server and are never sent to the browser.
@@ -90,65 +83,87 @@ def show_list(title, symbols, prefix):
     with c2:
         st.download_button('Download TXT', data=txt_bytes, file_name=f'{prefix}.txt', mime='text/plain', use_container_width=True)
 
-if st.session_state.page == 'Home':
+# Streamlit native pages have distinct URL paths and browser history.
+# Keep the navigation sidebar hidden; use the existing NC Wealth buttons.
+
+def common_header():
+    if st.button('← Back to Home', key='back_home'):
+        st.switch_page(PAGES['Home'])
+    st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
+
+def home_page():
     st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
     st.markdown('<div class="tagline">Compounding Relationships.</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">INVESTMENT RESEARCH &nbsp;·&nbsp; TRADING STRATEGIES</div>', unsafe_allow_html=True)
     left, right = st.columns(2, gap='large')
     with left:
         st.markdown('<div class="card"><div class="card-title">Investing</div><div class="card-text">Explore research-driven investment strategies, screening tools and opportunities.</div></div>', unsafe_allow_html=True)
-        if st.button('Explore Investing →', key='invest'): navigate('Investing')
+        if st.button('Explore Investing →', key='invest'): st.switch_page(PAGES['Investing'])
     with right:
         st.markdown('<div class="card"><div class="card-title">Trading</div><div class="card-text">A dedicated space for trading strategies, analysis and risk management.</div></div>', unsafe_allow_html=True)
-        if st.button('Explore Trading →', key='trade'): navigate('Trading')
-else:
-    if st.button('← Back to Home', key='back_home'): navigate('Home')
-    st.markdown('<div class="brand">NC WEALTH CORPORATION</div>', unsafe_allow_html=True)
-    if st.session_state.page == 'Investing':
-        st.markdown('<div class="tagline">Investing</div>', unsafe_allow_html=True)
-        st.markdown('<div class="subtitle">Explore our investment research tools</div>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="card-title">EMA Stock Screener</div><div class="card-text">Screen stocks using EMA-based technical filters, historical market-cap snapshots and momentum rankings.</div></div>', unsafe_allow_html=True)
-        st.link_button('Open EMA Stock Screener ↗', SCREENER_URL, use_container_width=True)
-        st.caption('Opens the existing EMA Stock Screener application in a new tab.')
-    elif st.session_state.page == 'Trading':
-        st.markdown('<div class="tagline">Trading</div>', unsafe_allow_html=True)
-        st.markdown('<div class="subtitle">Explore our trading research tools</div>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="card-title">Momentum Trading Watchlist</div><div class="card-text">Explore bullish and bearish stocks using 25- and 50-session price momentum.</div></div>', unsafe_allow_html=True)
-        if st.button('Open Momentum Watchlist →', key='open_momentum'): navigate('Momentum')
-        st.markdown('<div class="card"><div class="card-title">Triple Bullish &amp; Bearish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish and bearish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
-        if st.button('Open RSI Divergence Scanner →', key='open_rsi'): navigate('RSI')
-    elif st.session_state.page == 'Momentum':
-        if st.button('← Back to Trading', key='back_trading'): navigate('Trading')
-        st.markdown('<div class="tagline">Momentum Trading Watchlist</div>', unsafe_allow_html=True)
-        st.markdown('<div class="subtitle">Bullish and bearish momentum stocks</div>', unsafe_allow_html=True)
-        cutoff = effective_default_date()
-        selected = st.date_input('Select Date', value=cutoff, max_value=datetime.now(IST).date(), min_value=date(2025, 10, 10))
-        try:
-            frames = [fetch_snapshot(name) for name in FILES]
-            snapshots = [select_snapshot(frame, selected) for frame in frames]
-            dates = [dt for _, dt in snapshots if dt is not None]
-            if not dates:
-                st.warning('No watchlist is available for this date. Please select a later date.')
-            else:
-                most_recent = max(dates)
-                st.markdown(f'**Data as of: {most_recent.strftime("%d %B %Y")}**')
-                combined = pd.concat([frame for frame, _ in snapshots if not frame.empty], ignore_index=True)
-                bullish = sorted(set(combined.loc[combined['Theme'] == 'BULLISH', 'Stock']) - {'', 'NAN'})
-                bearish = sorted(set(combined.loc[combined['Theme'] == 'BEARISH', 'Stock']) - {'', 'NAN'})
-                c1, c2 = st.columns(2, gap='large')
-                with c1:
-                    show_list('📈 Bullish Momentum', bullish, f'bullish_momentum_{selected:%Y%m%d}')
-                with c2:
-                    show_list('📉 Bearish Momentum', bearish, f'bearish_momentum_{selected:%Y%m%d}')
-                st.markdown('### How are stocks selected?')
-                st.write('We evaluate stock-price performance over the previous **25 and 50 trading sessions**. Stocks in the **top 30 in both periods** are considered for the bullish watchlist, while stocks in the **bottom 30 in both periods** are considered for the bearish watchlist. Existing selections are reviewed periodically.')
-                st.caption('For research and educational purposes only. Not investment advice.')
-        except Exception as exc:
-            st.error('Unable to load the momentum watchlist. Check the Streamlit Supabase secrets and the published CSV files.')
-            import logging
-            logging.getLogger("momentum").error("Watchlist loading failed: %s: %s", type(exc).__name__, str(exc).split("?")[0])
-            # Avoid showing credential-bearing request details to website visitors.
+        if st.button('Explore Trading →', key='trade'): st.switch_page(PAGES['Trading'])
+def investing_page():
+    common_header()
+    st.markdown('<div class="tagline">Investing</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Explore our investment research tools</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-title">EMA Stock Screener</div><div class="card-text">Screen stocks using EMA-based technical filters, historical market-cap snapshots and momentum rankings.</div></div>', unsafe_allow_html=True)
+    st.link_button('Open EMA Stock Screener ↗', SCREENER_URL, use_container_width=True)
+    st.caption('Opens the existing EMA Stock Screener application in a new tab.')
 
-    elif st.session_state.page == 'RSI':
-        from rsi_page import show_rsi_page
-        show_rsi_page(navigate, IST)
+def trading_page():
+    common_header()
+    st.markdown('<div class="tagline">Trading</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Explore our trading research tools</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-title">Momentum Trading Watchlist</div><div class="card-text">Explore bullish and bearish stocks using 25- and 50-session price momentum.</div></div>', unsafe_allow_html=True)
+    if st.button('Open Momentum Watchlist →', key='open_momentum'): st.switch_page(PAGES['Momentum'])
+    st.markdown('<div class="card"><div class="card-title">Triple Bullish &amp; Bearish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish and bearish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
+    if st.button('Open RSI Divergence Scanner →', key='open_rsi'): st.switch_page(PAGES['RSI'])
+
+def momentum_page():
+    common_header()
+    st.markdown('<div class="tagline">Momentum Trading Watchlist</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Bullish and bearish momentum stocks</div>', unsafe_allow_html=True)
+    cutoff = effective_default_date()
+    selected = st.date_input('Select Date', value=cutoff, max_value=datetime.now(IST).date(), min_value=date(2025, 10, 10))
+    try:
+        frames = [fetch_snapshot(name) for name in FILES]
+        snapshots = [select_snapshot(frame, selected) for frame in frames]
+        dates = [dt for _, dt in snapshots if dt is not None]
+        if not dates:
+            st.warning('No watchlist is available for this date. Please select a later date.')
+        else:
+            most_recent = max(dates)
+            st.markdown(f'**Data as of: {most_recent.strftime("%d %B %Y")}**')
+            combined = pd.concat([frame for frame, _ in snapshots if not frame.empty], ignore_index=True)
+            bullish = sorted(set(combined.loc[combined['Theme'] == 'BULLISH', 'Stock']) - {'', 'NAN'})
+            bearish = sorted(set(combined.loc[combined['Theme'] == 'BEARISH', 'Stock']) - {'', 'NAN'})
+            c1, c2 = st.columns(2, gap='large')
+            with c1:
+                show_list('📈 Bullish Momentum', bullish, f'bullish_momentum_{selected:%Y%m%d}')
+            with c2:
+                show_list('📉 Bearish Momentum', bearish, f'bearish_momentum_{selected:%Y%m%d}')
+            st.markdown('### How are stocks selected?')
+            st.write('We evaluate stock-price performance over the previous **25 and 50 trading sessions**. Stocks in the **top 30 in both periods** are considered for the bullish watchlist, while stocks in the **bottom 30 in both periods** are considered for the bearish watchlist. Existing selections are reviewed periodically.')
+            st.caption('For research and educational purposes only. Not investment advice.')
+    except Exception as exc:
+        st.error('Unable to load the momentum watchlist. Check the Streamlit Supabase secrets and the published CSV files.')
+        import logging
+        logging.getLogger("momentum").error("Watchlist loading failed: %s: %s", type(exc).__name__, str(exc).split("?")[0])
+        # Avoid showing credential-bearing request details to website visitors.
+
+
+def rsi_page():
+    common_header()
+    from rsi_page import show_rsi_page
+    show_rsi_page(lambda destination: st.switch_page(PAGES[destination]), IST)
+
+PAGES = {
+    'Home': st.Page(home_page, title='Home', icon='🏠', default=True, url_path=''),
+    'Investing': st.Page(investing_page, title='Investing', icon='📊', url_path='investing'),
+    'Trading': st.Page(trading_page, title='Trading', icon='📈', url_path='trading'),
+    'Momentum': st.Page(momentum_page, title='Momentum Watchlist', icon='📈', url_path='momentum'),
+    'RSI': st.Page(rsi_page, title='RSI Divergence', icon='📉', url_path='rsi-divergence'),
+}
+
+navigation = st.navigation(list(PAGES.values()), position='hidden')
+navigation.run()
