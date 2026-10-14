@@ -39,6 +39,18 @@ h1,h2,h3,p {color:#f5f2ea!important;}
 [data-testid="stPageLink"] a p {color:#0d1826!important;font-weight:700!important;}
 a.nc-nav-link {display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none!important;background:#d8bb80;color:#0d1826!important;border:0;border-radius:10px;padding:.75rem 1rem;font-weight:700;margin:.55rem 0 1rem;}
 a.nc-nav-link:hover {background:#ecd3a3;color:#0d1826!important;}
+/* Black text on all gold buttons */
+.stButton > button,
+.stButton > button p,
+.stButton > button span {
+    color: #000000 !important;
+}
+
+.stButton > button:hover,
+.stButton > button:hover p,
+.stButton > button:hover span {
+    color: #000000 !important;
+}
 </style>''', unsafe_allow_html=True)
 
 @st.cache_data(ttl=300, show_spinner=False)
