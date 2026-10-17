@@ -115,6 +115,7 @@ def nav_link(label, page_name):
         'Trading': '/trading',
         'Momentum': '/momentum',
         'RSI': '/rsi-divergence',
+        'Base': '/base-breakout',
     }
     path = paths[page_name]
     st.markdown(
@@ -153,6 +154,8 @@ def trading_page():
     nav_link('Open Momentum Watchlist →', 'Momentum')
     st.markdown('<div class="card"><div class="card-title">Triple Bullish &amp; Bearish RSI Divergence</div><div class="card-text">Find confirmed A–B–C bullish and bearish RSI divergences across futures stocks and indices.</div></div>', unsafe_allow_html=True)
     nav_link('Open RSI Divergence Scanner →', 'RSI')
+    st.markdown('<div class="card"><div class="card-title">Base Breakout Scanner</div><div class="card-text">Find stocks trading in a tight range for weeks or months, and the ones breaking out of it.</div></div>', unsafe_allow_html=True)
+    nav_link('Open Base Breakout Scanner →', 'Base')
 
 def momentum_page():
     common_header()
@@ -192,12 +195,18 @@ def rsi_page():
     from rsi_page import show_rsi_page
     show_rsi_page(lambda destination: None, IST)
 
+def base_breakout_page():
+    common_header()
+    from base_page import show_base_page
+    show_base_page(IST)
+
 PAGES = {
     'Home': st.Page(home_page, title='Home', icon='🏠', default=True, url_path=''),
     'Investing': st.Page(investing_page, title='Investing', icon='📊', url_path='investing'),
     'Trading': st.Page(trading_page, title='Trading', icon='📈', url_path='trading'),
     'Momentum': st.Page(momentum_page, title='Momentum Watchlist', icon='📈', url_path='momentum'),
     'RSI': st.Page(rsi_page, title='RSI Divergence', icon='📉', url_path='rsi-divergence'),
+    'Base': st.Page(base_breakout_page, title='Base Breakout', icon='📦', url_path='base-breakout'),
 }
 
 navigation = st.navigation(list(PAGES.values()), position='hidden')
