@@ -59,21 +59,13 @@ def get_bases(filename):
 
 def filter_bases(df, start, rng, duration_label, statuses):
     """
-    Bases that overlap [start, today]. If a base began before `start`, only the
-    part from `start` onwards is counted (a slice of a valid base is still a valid
-    base inside the same range).
+    Bases in the chosen range whose FULL length meets the chosen duration, and which
+    are still forming or ended (breakout / breakdown / wick-out) on or after `start`.
     """
-    start = pd.Timestamp(start)
-    d = df[(df['RangePct'] == rng) & (df['Status'].isin(statuses)) & (df['BaseEnd'] >= start)].copy()
-    if d.empty:
-        return d
-    eff_start = d['BaseStart'].where(d['BaseStart'] >= start, start)
-    threshold = pd.DatetimeIndex(eff_start) + DURATIONS[duration_label] - pd.Timedelta(days=1)
-    ok = np.asarray(threshold <= pd.DatetimeIndex(d['BaseEnd']))
-    d = d.loc[ok].copy()
-    d['InRangeSince'] = eff_start[ok]
-    d['DaysInRange'] = (d['BaseEnd'] - d['InRangeSince']).dt.days + 1
-    return d.sort_values(['BaseEnd', 'DaysInRange'], ascending=[False, False])
+    min_rank = list(DURATIONS).index(duration_label) + 1      # same order as build_bases.py
+    d = df[(df['RangePct'] == rng) & (df['Status'].isin(statuses)) &
+           (df['DurationRank'] >= min_rank) & (df['BaseEnd'] >= pd.Timestamp(start))].copy()
+    return d.sort_values(['BaseEnd', 'CalendarDays'], ascending=[False, False])
 
 
 def _stock_list(title, symbols, key):
@@ -95,11 +87,12 @@ def show_base_page(ist):
     basis = st.radio('Range measured on', list(BASIS_FILES), horizontal=True, key='base_basis',
                      help='Closing prices ignore intraday spikes. High–Low is stricter.')
     c1, c2, c3 = st.columns(3)
-    start = c1.date_input('From', value=date(date.today().year, 1, 1), min_value=MIN_DATE,
-                          max_value=date.today(), key='base_start')
+    start = c1.date_input('Active on or after', value=date(date.today().year, 1, 1), min_value=MIN_DATE,
+                          max_value=date.today(), key='base_start',
+                          help='Shows bases that are still forming, or that ended (breakout / breakdown) on or after this date.')
     rng = c2.selectbox('Range (%)', RANGES, index=1, key='base_range',
                        format_func=lambda x: f'{x}%')
-    dur = c3.selectbox('Stays in range for at least', list(DURATIONS), index=2, key='base_dur')
+    dur = c3.selectbox('Base lasted at least', list(DURATIONS), index=2, key='base_dur')
     statuses = st.multiselect('Show', STATUS_OPTIONS,
                               default=['Base Formation Ongoing', 'Breakout'], key='base_status')
     st.caption('  \n'.join(f'**{k}**: {v}' for k, v in STATUS_HELP.items()))
@@ -120,7 +113,7 @@ def show_base_page(ist):
     if 'base_result' not in st.session_state:
         return
     res, p = st.session_state['base_result']
-    st.markdown(f"**{p['basis']} · {p['rng']}% range · ≥ {p['dur']} · from {p['start']:%d %b %Y}**")
+    st.markdown(f"**{p['basis']} · {p['rng']}% range · ≥ {p['dur']} · active on/after {p['start']:%d %b %Y}**")
 
     if res.empty:
         st.info('No bases match these filters.')
@@ -135,9 +128,9 @@ def show_base_page(ist):
                 _stock_list(status, symbols, f"{status.lower().replace(' ', '_')}_{p['rng']}pct")
 
     st.subheader(f'Detailed bases ({len(res)})')
-    out = res[['Symbol', 'Status', 'InRangeSince', 'BaseEnd', 'DaysInRange',
+    out = res[['Symbol', 'Status', 'BaseStart', 'BaseEnd', 'CalendarDays',
                'BaseLow', 'BaseHigh', 'ActualRangePct', 'ExitDate']].copy()
-    for c in ('InRangeSince', 'BaseEnd', 'ExitDate'):
+    for c in ('BaseStart', 'BaseEnd', 'ExitDate'):
         out[c] = out[c].dt.strftime('%Y-%m-%d')
     out['Symbol'] = out['Symbol'].astype(str)
     out['Status'] = out['Status'].astype(str)
@@ -147,5 +140,4 @@ def show_base_page(ist):
                        mime='text/csv', key='dl_base_detail')
     st.caption('One stock can appear several times (different base periods). '
                'Lists show unique symbols; the table and CSV keep every base. '
-               'Base Low/High/Range describe the full base, which may start before your From date. '
-               'Research only; not investment advice.')
+               'Days are calendar days of the full base. Research only; not investment advice.')
