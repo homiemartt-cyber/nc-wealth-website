@@ -22,7 +22,7 @@ CONFIGS = {
         note='Universe: futures stocks.',
     ),
     'investing': dict(
-        bucket='investing-baseformation', kp='ibase',
+        bucket='investing_baseformation', kp='ibase',
         title='Base Formation Scanner',
         subtitle='₹1,000–50,000 cr market-cap stocks trading in a tight range, and the ones that broke out',
         note='Universe: companies with a market cap between ₹1,000 cr and ₹50,000 cr, refreshed monthly.',
