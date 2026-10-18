@@ -1,4 +1,4 @@
-"""NC Wealth Base Breakout scanner; reads precomputed bases, no client-side keys."""
+"""NC Wealth Base scanner pages; reads precomputed bases from Supabase, no client-side keys."""
 
 import gzip
 import io
@@ -6,16 +6,31 @@ import logging
 from datetime import date
 from urllib.parse import quote
 
-import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
 
-BUCKET = 'base-breakouts'
 MIN_DATE = date(2000, 1, 1)
 RANGES = list(range(5, 55, 5))
 
-# Real calendar durations (dates inclusive: 18/09 -> 17/10 = 1 month)
+# One page layout, two stock universes. 'kp' keeps each page's widgets separate.
+CONFIGS = {
+    'futures': dict(
+        bucket='base-breakouts', kp='base',
+        title='Base Breakout Scanner',
+        subtitle='Stocks trading in a tight range, and the ones that broke out',
+        note='Universe: futures stocks.',
+    ),
+    'investing': dict(
+        bucket='investing-baseformation', kp='ibase',
+        title='Base Formation Scanner',
+        subtitle='₹1,000–50,000 cr market-cap stocks trading in a tight range, and the ones that broke out',
+        note='Universe: companies with a market cap between ₹1,000 cr and ₹50,000 cr, refreshed monthly.',
+    ),
+}
+
+# Real calendar durations (dates inclusive: 18/09 -> 17/10 = 1 month).
+# Order must match DURATIONS in build_bases.py (DurationRank 1..11).
 DURATIONS = {
     '15 days': pd.DateOffset(days=15),
     '1 month': pd.DateOffset(months=1),
@@ -43,18 +58,21 @@ STATUS_HELP = {
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_bases(filename):
+def get_bases(bucket, filename):
     url = st.secrets['SUPABASE_URL'].rstrip('/')
     key = st.secrets['SUPABASE_SERVICE_ROLE_KEY']
-    endpoint = f"{url}/storage/v1/object/authenticated/{BUCKET}/{quote(filename)}"
+    endpoint = f"{url}/storage/v1/object/authenticated/{bucket}/{quote(filename)}"
     response = requests.get(endpoint, headers={
         'apikey': key, 'Authorization': f'Bearer {key}'
     }, timeout=120)
     response.raise_for_status()
     raw = gzip.decompress(response.content)
-    df = pd.read_csv(io.BytesIO(raw), dtype={'Symbol': 'category', 'Status': 'category'},
-                     parse_dates=['BaseStart', 'BaseEnd', 'ExitDate'])
-    return df
+    dtypes = {'Symbol': 'category', 'Status': 'category'}
+    header = pd.read_csv(io.BytesIO(raw), nrows=0).columns
+    if 'Company' in header:
+        dtypes['Company'] = 'category'
+    return pd.read_csv(io.BytesIO(raw), dtype=dtypes,
+                       parse_dates=['BaseStart', 'BaseEnd', 'ExitDate'])
 
 
 def filter_bases(df, start, rng, duration_label, statuses):
@@ -79,28 +97,29 @@ def _stock_list(title, symbols, key):
                        file_name=f'{key}.csv', mime='text/csv', key=f'dl_{key}')
 
 
-def show_base_page(ist):
-    st.markdown('<div class="tagline">Base Breakout Scanner</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Stocks trading in a tight range, and the ones that broke out</div>',
-                unsafe_allow_html=True)
+def show_base_page(ist, universe='futures'):
+    cfg = CONFIGS[universe]
+    kp = cfg['kp']
+    st.markdown(f'<div class="tagline">{cfg["title"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="subtitle">{cfg["subtitle"]}</div>', unsafe_allow_html=True)
 
-    basis = st.radio('Range measured on', list(BASIS_FILES), horizontal=True, key='base_basis',
+    basis = st.radio('Range measured on', list(BASIS_FILES), horizontal=True, key=f'{kp}_basis',
                      help='Closing prices ignore intraday spikes. High–Low is stricter.')
     c1, c2, c3 = st.columns(3)
     start = c1.date_input('Active on or after', value=date(date.today().year, 1, 1), min_value=MIN_DATE,
-                          max_value=date.today(), key='base_start',
+                          max_value=date.today(), key=f'{kp}_start',
                           help='Shows bases that are still forming, or that ended (breakout / breakdown) on or after this date.')
-    rng = c2.selectbox('Range (%)', RANGES, index=1, key='base_range',
-                       format_func=lambda x: f'{x}%')
-    dur = c3.selectbox('Base lasted at least', list(DURATIONS), index=2, key='base_dur')
+    rng = c2.selectbox('Range (%)', RANGES, index=1, key=f'{kp}_range', format_func=lambda x: f'{x}%')
+    dur = c3.selectbox('Base lasted at least', list(DURATIONS), index=2, key=f'{kp}_dur')
     statuses = st.multiselect('Show', STATUS_OPTIONS,
-                              default=['Base Formation Ongoing', 'Breakout'], key='base_status')
+                              default=['Base Formation Ongoing', 'Breakout'], key=f'{kp}_status')
     st.caption('  \n'.join(f'**{k}**: {v}' for k, v in STATUS_HELP.items()))
+    st.caption(cfg['note'])
 
-    if st.button('Scan Bases', key='scan_base'):
+    if st.button('Scan Bases', key=f'{kp}_scan'):
         try:
-            data = get_bases(BASIS_FILES[basis])
-            st.session_state['base_result'] = (
+            data = get_bases(cfg['bucket'], BASIS_FILES[basis])
+            st.session_state[f'{kp}_result'] = (
                 filter_bases(data, start, rng, dur, statuses),
                 dict(basis=basis, start=start, rng=rng, dur=dur),
             )
@@ -110,9 +129,9 @@ def show_base_page(ist):
             st.error('Unable to load base data. Check Supabase access and the latest upload.')
             return
 
-    if 'base_result' not in st.session_state:
+    if f'{kp}_result' not in st.session_state:
         return
-    res, p = st.session_state['base_result']
+    res, p = st.session_state[f'{kp}_result']
     st.markdown(f"**{p['basis']} · {p['rng']}% range · ≥ {p['dur']} · active on/after {p['start']:%d %b %Y}**")
 
     if res.empty:
@@ -125,19 +144,21 @@ def show_base_page(ist):
         for col, status in zip(cols, shown[i:i + 2]):
             symbols = sorted(set(res.loc[res['Status'] == status, 'Symbol'].astype(str)))
             with col:
-                _stock_list(status, symbols, f"{status.lower().replace(' ', '_')}_{p['rng']}pct")
+                _stock_list(status, symbols, f"{kp}_{status.lower().replace(' ', '_')}_{p['rng']}pct")
 
     st.subheader(f'Detailed bases ({len(res)})')
-    out = res[['Symbol', 'Status', 'BaseStart', 'BaseEnd', 'CalendarDays',
-               'BaseLow', 'BaseHigh', 'ActualRangePct', 'ExitDate']].copy()
+    columns = ['Symbol'] + (['Company'] if 'Company' in res.columns else []) + [
+        'Status', 'BaseStart', 'BaseEnd', 'CalendarDays', 'BaseLow', 'BaseHigh', 'ActualRangePct', 'ExitDate']
+    out = res[columns].copy()
     for c in ('BaseStart', 'BaseEnd', 'ExitDate'):
         out[c] = out[c].dt.strftime('%Y-%m-%d')
-    out['Symbol'] = out['Symbol'].astype(str)
-    out['Status'] = out['Status'].astype(str)
+    for c in ('Symbol', 'Company', 'Status'):
+        if c in out.columns:
+            out[c] = out[c].astype(str)
     st.dataframe(out.head(2000), hide_index=True, use_container_width=True)
     st.download_button('Download detailed bases (CSV)', out.to_csv(index=False).encode('utf-8-sig'),
-                       file_name=f"bases_{p['rng']}pct_{p['dur'].replace(' ', '')}.csv",
-                       mime='text/csv', key='dl_base_detail')
+                       file_name=f"{kp}_bases_{p['rng']}pct_{p['dur'].replace(' ', '')}.csv",
+                       mime='text/csv', key=f'{kp}_dl_detail')
     st.caption('One stock can appear several times (different base periods). '
                'Lists show unique symbols; the table and CSV keep every base. '
                'Days are calendar days of the full base. Research only; not investment advice.')

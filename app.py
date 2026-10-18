@@ -116,6 +116,7 @@ def nav_link(label, page_name):
         'Momentum': '/momentum',
         'RSI': '/rsi-divergence',
         'Base': '/base-breakout',
+        'InvBase': '/investing-base-formation',
     }
     path = paths[page_name]
     st.markdown(
@@ -145,6 +146,8 @@ def investing_page():
     st.markdown('<div class="card"><div class="card-title">EMA Stock Screener</div><div class="card-text">Screen stocks using EMA-based technical filters, historical market-cap snapshots and momentum rankings.</div></div>', unsafe_allow_html=True)
     st.link_button('Open EMA Stock Screener ↗', SCREENER_URL, use_container_width=True)
     st.caption('Opens the existing EMA Stock Screener application in a new tab.')
+    st.markdown('<div class="card"><div class="card-title">Base Formation Scanner</div><div class="card-text">Find stocks with a market cap of ₹1,000–50,000 crore that are trading in a tight range, and the ones breaking out of it.</div></div>', unsafe_allow_html=True)
+    nav_link('Open Base Formation Scanner →', 'InvBase')
 
 def trading_page():
     common_header()
@@ -200,6 +203,11 @@ def base_breakout_page():
     from base_page import show_base_page
     show_base_page(IST)
 
+def investing_base_page():
+    common_header()
+    from base_page import show_base_page
+    show_base_page(IST, 'investing')
+
 PAGES = {
     'Home': st.Page(home_page, title='Home', icon='🏠', default=True, url_path=''),
     'Investing': st.Page(investing_page, title='Investing', icon='📊', url_path='investing'),
@@ -207,6 +215,7 @@ PAGES = {
     'Momentum': st.Page(momentum_page, title='Momentum Watchlist', icon='📈', url_path='momentum'),
     'RSI': st.Page(rsi_page, title='RSI Divergence', icon='📉', url_path='rsi-divergence'),
     'Base': st.Page(base_breakout_page, title='Base Breakout', icon='📦', url_path='base-breakout'),
+    'InvBase': st.Page(investing_base_page, title='Base Formation', icon='📦', url_path='investing-base-formation'),
 }
 
 navigation = st.navigation(list(PAGES.values()), position='hidden')
