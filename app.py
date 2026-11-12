@@ -117,6 +117,7 @@ def nav_link(label, page_name):
         'RSI': '/rsi-divergence',
         'Base': '/base-breakout',
         'InvBase': '/investing-base-formation',
+        'HistoricalRS': '/historical-rs',
     }
     path = paths[page_name]
     st.markdown(
@@ -148,6 +149,8 @@ def investing_page():
     st.caption('Opens the existing EMA Stock Screener application in a new tab.')
     st.markdown('<div class="card"><div class="card-title">Base Formation Scanner</div><div class="card-text">Find stocks with a market cap of ₹1,000–50,000 crore that are trading in a tight range, and the ones breaking out of it.</div></div>', unsafe_allow_html=True)
     nav_link('Open Base Formation Scanner →', 'InvBase')
+    st.markdown('<div class="card"><div class="card-title">Historical ATH &amp; Relative Strength Screener</div><div class="card-text">Find Nifty 500 stocks breaking previous all-time, 5-year or 52-week highs with relative strength against Nifty 500.</div></div>', unsafe_allow_html=True)
+    nav_link('Open Historical RS Screener →', 'HistoricalRS')
 
 def trading_page():
     common_header()
@@ -208,6 +211,11 @@ def investing_base_page():
     from base_page import show_base_page
     show_base_page(IST, 'investing')
 
+def historical_rs_page():
+    common_header()
+    from historical_rs_page import show_historical_rs_page
+    show_historical_rs_page()
+
 PAGES = {
     'Home': st.Page(home_page, title='Home', icon='🏠', default=True, url_path=''),
     'Investing': st.Page(investing_page, title='Investing', icon='📊', url_path='investing'),
@@ -216,6 +224,7 @@ PAGES = {
     'RSI': st.Page(rsi_page, title='RSI Divergence', icon='📉', url_path='rsi-divergence'),
     'Base': st.Page(base_breakout_page, title='Base Breakout', icon='📦', url_path='base-breakout'),
     'InvBase': st.Page(investing_base_page, title='Base Formation', icon='📦', url_path='investing-base-formation'),
+    'HistoricalRS': st.Page(historical_rs_page, title='Historical ATH & RS', icon='📊', url_path='historical-rs'),
 }
 
 navigation = st.navigation(list(PAGES.values()), position='hidden')
