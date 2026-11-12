@@ -58,9 +58,19 @@ def show_historical_rs_page():
         a, b = st.columns(2)
         start = a.date_input('From date', value=date(2026, 1, 1), min_value=date(2023, 1, 1), max_value=today)
         end = b.date_input('To date', value=today, min_value=date(2023, 1, 1), max_value=today)
-        price_types = st.multiselect('Price-high breakout conditions', list(PRICE_LABELS), default=['ATH'], format_func=lambda x: PRICE_LABELS[x])
+        st.markdown('**Price-high breakout conditions**')
+        high_cols = st.columns(3)
+        price_types = [
+            key for col, (key, label) in zip(high_cols, PRICE_LABELS.items())
+            if col.checkbox(label, value=(key == 'ATH'), key=f'historical_high_{key}')
+        ]
         price_logic = st.radio('When multiple high conditions are selected', ['ANY', 'ALL'], horizontal=True, help='ANY = one selected high type; ALL = every selected high type.')
-        periods = st.multiselect('RS periods (months)', [12, 6, 3, 1], default=[6, 3], format_func=lambda x: f'{x}M')
+        st.markdown('**RS periods (months)**')
+        period_cols = st.columns(4)
+        periods = [
+            months for col, months in zip(period_cols, [12, 6, 3, 1])
+            if col.checkbox(f'{months}M', value=(months in [6, 3]), key=f'historical_rs_{months}m')
+        ]
         rs_logic = st.radio('RS combination', ['ALL', 'ANY'], horizontal=True)
         min_rs = st.number_input('Minimum RS (percentage points)', value=0.0, step=0.5)
         submitted = st.form_submit_button('Run Scanner', use_container_width=True, type='primary')
